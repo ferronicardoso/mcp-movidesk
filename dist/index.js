@@ -3,7 +3,11 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { inspect } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import * as movidesk from './movideskClient.js';
+import { handleUpdateTicket } from './updateTicketHandler.js';
+import { handleCreateTicket } from './createTicketHandler.js';
+import { toText } from './toolResult.js';
 // ---------------------------------------------------------------------------
 // Servidor MCP
 // ---------------------------------------------------------------------------
@@ -46,6 +50,65 @@ const personListProperties = {
         type: 'string',
         description: 'Lista de campos a retornar ($select), separados por vírgula',
     },
+};
+// Campos de ticket cujo valor é objeto/array precisam de tipo declarado no
+// JSON Schema; sem isso, o cliente MCP pode serializá-los como texto plano
+// em vez de JSON estruturado, e a API do Movidesk rejeita o payload (400/500).
+const personRefSchema = {
+    type: 'object',
+    properties: {
+        id: { type: 'string', description: 'Id da pessoa' },
+    },
+    required: ['id'],
+    additionalProperties: true,
+};
+const actionsSchema = {
+    type: 'array',
+    description: 'Ações/notas do ticket. Cada item precisa de "id" (use 0 para uma nota nova) e, quando id=0, de "createdBy.id".',
+    items: {
+        type: 'object',
+        properties: {
+            id: { type: 'number', description: 'Id da ação (0 para uma nota nova)' },
+            type: { type: 'number', description: 'Tipo da ação (1 = nota interna, 2 = resposta pública)' },
+            description: { type: 'string', description: 'Texto da nota/ação' },
+            createdBy: personRefSchema,
+        },
+        required: ['id'],
+        additionalProperties: true,
+    },
+};
+const emailsSchema = {
+    type: 'array',
+    description: 'E-mails da pessoa/organização',
+    items: {
+        type: 'object',
+        properties: {
+            emailType: { type: 'string', description: 'Tipo do e-mail (ex.: Profissional, Pessoal)' },
+            email: { type: 'string', description: 'Endereço de e-mail' },
+            isDefault: { type: 'boolean', description: 'Se é o e-mail padrão' },
+        },
+        required: ['email'],
+        additionalProperties: true,
+    },
+};
+const contactsSchema = {
+    type: 'array',
+    description: 'Contatos/telefones da pessoa/organização',
+    items: {
+        type: 'object',
+        properties: {
+            contactType: { type: 'string', description: 'Tipo do contato (ex.: Telefone celular)' },
+            contact: { type: 'string', description: 'Valor do contato' },
+            isDefault: { type: 'boolean', description: 'Se é o contato padrão' },
+        },
+        required: ['contact'],
+        additionalProperties: true,
+    },
+};
+const teamsSchema = {
+    type: 'array',
+    description: 'Nomes das equipes da pessoa (obrigatório para Agentes)',
+    items: { type: 'string' },
 };
 const ODATA_KEYS = ['filter', 'select', 'expand', 'orderby', 'top', 'skip'];
 function toODataQuery(params) {
@@ -93,12 +156,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         {
             name: 'create_ticket',
-            description: 'Cria um novo ticket no Movidesk (POST /tickets). Aceita os campos do ticket conforme o layout da API (type, subject, category, urgency, status, clients, actions, etc.). O campo actions permite registrar a descrição inicial (type=1 nota interna, type=2 resposta pública).',
+            description: 'Cria um novo ticket no Movidesk (POST /tickets). Aceita os campos do ticket conforme o layout da API (type, subject, category, urgency, status, clients, actions, etc.). Requer "createdBy.id" e "clients" (array com ao menos um item com "id") preenchidos. O campo actions permite registrar a descrição inicial (type=1 nota interna, type=2 resposta pública); cada item precisa de "id" (use 0 para uma nota nova) e, quando id=0, de "createdBy.id". Atenção: a API do Movidesk pode exigir que os ids de "clients"/"createdBy" sejam de uma pessoa com perfil de Cliente — um id de Agente puro (ex.: quem está usando este MCP) pode ser rejeitado com "Ref. code is required" ou "Customers is required", mesmo com o formato correto; nesse caso, confirme o perfil da pessoa antes de tentar de novo.',
             inputSchema: {
                 type: 'object',
                 properties: {
                     type: { type: 'number', description: 'Tipo do ticket' },
                     subject: { type: 'string', description: 'Assunto do ticket' },
+                    category: { type: 'string', description: 'Categoria do ticket' },
+                    urgency: { type: 'string', description: 'Urgência do ticket' },
+                    status: { type: 'string', description: 'Status do ticket' },
+                    createdBy: personRefSchema,
+                    owner: personRefSchema,
+                    ownerTeam: { type: 'string', description: 'Nome da equipe responsável' },
+                    clients: { type: 'array', items: personRefSchema, description: 'Clientes do ticket (ao menos um item com "id")' },
+                    actions: actionsSchema,
                 },
                 required: ['type', 'subject'],
                 additionalProperties: true,
@@ -106,11 +177,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         {
             name: 'update_ticket',
-            description: 'Atualiza um ticket existente (PATCH /tickets?id=). Envie somente os campos a alterar. O campo actions permite adicionar notas internas (type=1) ou respostas públicas (type=2) ao ticket.',
+            description: 'Atualiza um ticket existente (PATCH /tickets?id=). Envie somente os campos a alterar. O campo actions permite adicionar notas internas (type=1) ou respostas públicas (type=2) ao ticket; cada item de actions precisa de "id" (use 0 para uma nota nova) e, quando id=0, de "createdBy.id". Os campos owner e ownerTeam só podem ser atualizados juntos (nunca um sem o outro).',
             inputSchema: {
                 type: 'object',
                 properties: {
                     id: { type: 'number', description: 'Id do ticket a atualizar' },
+                    owner: personRefSchema,
+                    ownerTeam: { type: 'string', description: 'Nome da equipe responsável' },
+                    actions: actionsSchema,
                 },
                 required: ['id'],
                 additionalProperties: true,
@@ -158,6 +232,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                     personType: { type: 'number', description: '1=Pessoa física, 2=Empresa, 4=Departamento' },
                     profileType: { type: 'number', description: '1=Agente, 2=Cliente, 3=Agente e Cliente' },
                     businessName: { type: 'string', description: 'Nome ou razão social' },
+                    accessProfile: { type: 'string', description: 'Perfil de acesso (obrigatório para Agentes)' },
+                    emails: emailsSchema,
+                    contacts: contactsSchema,
+                    teams: teamsSchema,
                 },
                 required: ['isActive', 'personType', 'profileType', 'businessName'],
                 additionalProperties: true,
@@ -170,6 +248,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                 type: 'object',
                 properties: {
                     id: { type: 'string', description: 'Id da pessoa/organização a atualizar' },
+                    emails: emailsSchema,
+                    contacts: contactsSchema,
+                    teams: teamsSchema,
                 },
                 required: ['id'],
                 additionalProperties: true,
@@ -193,9 +274,6 @@ function formatError(error) {
     catch {
         return inspect(error, { depth: 6, breakLength: 120 });
     }
-}
-function toText(value) {
-    return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] };
 }
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = (request.params ?? {});
@@ -222,13 +300,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 return toText(result);
             }
             case 'create_ticket': {
-                const result = await movidesk.post('/tickets', params);
-                return toText(result);
+                return await handleCreateTicket(params);
             }
             case 'update_ticket': {
-                const { id, ...ticket } = params;
-                const result = await movidesk.patch('/tickets', ticket, { id });
-                return toText(result);
+                return await handleUpdateTicket(params);
             }
             case 'upload_ticket_attachment': {
                 const { id, actionId, filePath } = params;
@@ -275,8 +350,10 @@ async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
 }
-main().catch((err) => {
-    console.error('Erro fatal:', err);
-    process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+    main().catch((err) => {
+        console.error('Erro fatal:', err);
+        process.exit(1);
+    });
+}
 //# sourceMappingURL=index.js.map

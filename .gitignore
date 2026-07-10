@@ -8,5 +8,6 @@ node_modules/
 
 # Manter dist/ no repo para permitir npx github:user/repo sem build local
 # dist/
+dist-test/
 /.claude
 /openspec
