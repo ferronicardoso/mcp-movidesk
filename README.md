@@ -1,5 +1,9 @@
 # mcp-movidesk
 
+[![Docker Publish](https://github.com/ferronicardoso/mcp-movidesk/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ferronicardoso/mcp-movidesk/actions/workflows/docker-publish.yml)
+[![GHCR](https://img.shields.io/badge/ghcr.io-mcp--movidesk-2496ED?logo=docker&logoColor=white)](https://github.com/ferronicardoso/mcp-movidesk/pkgs/container/mcp-movidesk)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](package.json)
+
 MCP server para interação com a API pública do Movidesk via linguagem natural, expondo operações de tickets e de pessoas/organizações a hosts MCP (Claude Desktop, VS Code, Cursor e compatíveis).
 
 ## Features
@@ -45,6 +49,12 @@ A URL base da API (`https://api.movidesk.com/public/v1`) é fixa e não é confi
 
 **Segurança:** prefira `MOVIDESK_TOKEN` via `env` para uso contínuo. `--token` fica visível em listagens de processo (`ps`, gerenciador de tarefas) e é recomendado apenas para testes manuais pontuais.
 
+| Variável | Obrigatório | Padrão | Descrição |
+|---|---|---|---|
+| `MCP_TRANSPORT` | Não | `stdio` | Modo de transporte: `stdio` (padrão, para `npx`/Claude Desktop/VS Code) ou `http` (Streamable HTTP, para Docker/clientes remotos como o n8n) |
+| `MCP_HTTP_PORT` | Não | `3003` | Porta do servidor HTTP (só usada quando `MCP_TRANSPORT=http`) |
+| `MCP_HTTP_HOST` | Não | `0.0.0.0` | Endereço de bind do servidor HTTP (só usada quando `MCP_TRANSPORT=http`) |
+
 ## Usage
 
 ### Run directly from GitHub
@@ -88,6 +98,19 @@ npx github:ferronicardoso/mcp-movidesk
   }
 }
 ```
+
+### Rodando com Docker (transporte HTTP)
+
+A imagem publicada roda em modo Streamable HTTP por padrão, para uso como endpoint MCP remoto (ex.: a partir do node MCP Client Tool do n8n ou qualquer cliente compatível com Streamable HTTP):
+
+```bash
+docker run -d --name mcp-movidesk \
+  -p 3003:3003 \
+  -e MOVIDESK_TOKEN=seu-token-aqui \
+  ghcr.io/ferronicardoso/mcp-movidesk:latest
+```
+
+O endpoint MCP fica disponível em `http://localhost:3003/mcp`.
 
 ## Local Development
 
