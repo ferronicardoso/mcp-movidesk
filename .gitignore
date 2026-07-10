@@ -1,0 +1,12 @@
+node_modules/
+*.env
+.env.local
+*.log
+
+# Contém o token real da API do Movidesk usado nos testes locais
+.mcp.json
+
+# Manter dist/ no repo para permitir npx github:user/repo sem build local
+# dist/
+/.claude
+/openspec

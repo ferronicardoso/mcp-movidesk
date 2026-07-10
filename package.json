@@ -1,0 +1,29 @@
+{
+  "name": "mcp-movidesk",
+  "version": "1.0.0",
+  "description": "MCP server para interação com a API do Movidesk via linguagem natural",
+  "type": "module",
+  "bin": {
+    "mcp-movidesk": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc",
+    "hooks:install": "husky",
+    "precommit:build": "npm run build && git add dist",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
