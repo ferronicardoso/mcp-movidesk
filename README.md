@@ -63,6 +63,28 @@ A URL base da API (`https://api.movidesk.com/public/v1`) é fixa e não é confi
 npx github:ferronicardoso/mcp-movidesk
 ```
 
+### Claude Code (CLI)
+
+```bash
+claude mcp add movidesk --scope user -- npx -y github:ferronicardoso/mcp-movidesk
+```
+
+O `--scope` define onde o registro do servidor fica salvo:
+
+| Escopo | Salvo em | Visível para |
+|---|---|---|
+| `local` (padrão) | local do projeto, não versionado | só você, só neste projeto |
+| `project` | `.mcp.json` na raiz do projeto | quem clonar o repositório (precisa commitar o arquivo) |
+| `user` | configuração global do Claude Code | você, em todos os projetos |
+
+Variáveis de ambiente podem ser passadas com `--env KEY=VALUE` repetido antes do `--`, por exemplo:
+
+```bash
+claude mcp add movidesk --scope user \
+  --env MOVIDESK_TOKEN=seu-token-aqui \
+  -- npx -y github:ferronicardoso/mcp-movidesk
+```
+
 ### Claude Desktop configuration
 
 `%APPDATA%\\Claude\\claude_desktop_config.json`:
