@@ -1,59 +1,59 @@
-# mcp-movidesk
+# MCP Server for Movidesk
 
 [![Docker Publish](https://github.com/ferronicardoso/mcp-movidesk/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ferronicardoso/mcp-movidesk/actions/workflows/docker-publish.yml)
 [![GHCR](https://img.shields.io/badge/ghcr.io-mcp--movidesk-2496ED?logo=docker&logoColor=white)](https://github.com/ferronicardoso/mcp-movidesk/pkgs/container/mcp-movidesk)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](package.json)
 
-MCP server para interação com a API pública do Movidesk via linguagem natural, expondo operações de tickets e de pessoas/organizações a hosts MCP (Claude Desktop, VS Code, Cursor e compatíveis).
+MCP server for interacting with the Movidesk public API via natural language, exposing ticket and person/organization operations to MCP hosts (Claude Desktop, VS Code, Cursor, and compatible clients).
 
 ## Features
 
-- Listagem, busca, criação e atualização de tickets (`/tickets` e `/tickets/past`)
-- Upload de anexos em ações de ticket (`/ticketFileUpload`)
-- Listagem, busca, criação e atualização de pessoas/organizações (`/persons`)
-- Suporte a filtros OData (`$filter`, `$select`, `$expand`, `$orderby`, `$top`, `$skip`) nas ferramentas de listagem
-- Tratamento de erro que repassa o corpo de erro retornado pela API do Movidesk
+- List, search, create, and update tickets (`/tickets` and `/tickets/past`)
+- Upload attachments to ticket actions (`/ticketFileUpload`)
+- List, search, create, and update persons/organizations (`/persons`)
+- OData filter support (`$filter`, `$select`, `$expand`, `$orderby`, `$top`, `$skip`) on listing tools
+- Error handling that forwards the error body returned by the Movidesk API
 
 ## Available Tools
 
-| Tool | Descrição |
+| Tool | Description |
 |---|---|
-| `list_tickets` | Lista tickets atualizados nos últimos 90 dias, com filtros OData opcionais |
-| `list_tickets_past` | Lista tickets com atualização anterior a 90 dias (`/tickets/past`) |
-| `get_ticket` | Busca um ticket por `id` ou `protocol` |
-| `create_ticket` | Cria um novo ticket |
-| `update_ticket` | Atualiza um ticket existente, incluindo notas/respostas via `actions` |
-| `upload_ticket_attachment` | Envia um arquivo local como anexo de uma ação de ticket |
-| `list_persons` | Lista pessoas/organizações, com filtros OData opcionais |
-| `get_person` | Busca uma pessoa/organização por `id` |
-| `create_person` | Cria uma nova pessoa/organização |
-| `update_person` | Atualiza uma pessoa/organização existente |
+| `list_tickets` | Lists tickets updated in the last 90 days, with optional OData filters |
+| `list_tickets_past` | Lists tickets last updated more than 90 days ago (`/tickets/past`) |
+| `get_ticket` | Fetches a ticket by `id` or `protocol` |
+| `create_ticket` | Creates a new ticket |
+| `update_ticket` | Updates an existing ticket, including notes/replies via `actions` |
+| `upload_ticket_attachment` | Uploads a local file as an attachment to a ticket action |
+| `list_persons` | Lists persons/organizations, with optional OData filters |
+| `get_person` | Fetches a person/organization by `id` |
+| `create_person` | Creates a new person/organization |
+| `update_person` | Updates an existing person/organization |
 
 ## Requirements
 
 - Node.js 18+
-- Token de API do Movidesk (gerado no painel admin do Movidesk: Configurações → Espaço de trabalho → Token de API)
+- Movidesk API token (generated in the Movidesk admin panel: Settings → Workspace → API Token)
 
 ## Configuration
 
-O token de autenticação pode ser informado por variável de ambiente ou por argumento de linha de comando. Quando os dois forem informados, o argumento prevalece.
+The authentication token can be provided via environment variable or command-line argument. When both are provided, the argument takes precedence.
 
-| Variável / Argumento | Obrigatório | Descrição |
+| Variable / Argument | Required | Description |
 |---|---|---|
-| `MOVIDESK_TOKEN` | Sim* | Token de API do Movidesk |
-| `--token` | Sim* | Alternativa ao `MOVIDESK_TOKEN`, via argumento de linha de comando |
+| `MOVIDESK_TOKEN` | Yes* | Movidesk API token |
+| `--token` | Yes* | Alternative to `MOVIDESK_TOKEN`, via command-line argument |
 
-\* Um dos dois é obrigatório.
+\* One of the two is required.
 
-A URL base da API (`https://api.movidesk.com/public/v1`) é fixa e não é configurável.
+The API base URL (`https://api.movidesk.com/public/v1`) is fixed and not configurable.
 
-**Segurança:** prefira `MOVIDESK_TOKEN` via `env` para uso contínuo. `--token` fica visível em listagens de processo (`ps`, gerenciador de tarefas) e é recomendado apenas para testes manuais pontuais.
+**Security:** prefer `MOVIDESK_TOKEN` via `env` for continuous use. `--token` is visible in process listings (`ps`, task manager) and is recommended only for one-off manual testing.
 
-| Variável | Obrigatório | Padrão | Descrição |
+| Variable | Required | Default | Description |
 |---|---|---|---|
-| `MCP_TRANSPORT` | Não | `stdio` | Modo de transporte: `stdio` (padrão, para `npx`/Claude Desktop/VS Code) ou `http` (Streamable HTTP, para Docker/clientes remotos como o n8n) |
-| `MCP_HTTP_PORT` | Não | `3003` | Porta do servidor HTTP (só usada quando `MCP_TRANSPORT=http`) |
-| `MCP_HTTP_HOST` | Não | `0.0.0.0` | Endereço de bind do servidor HTTP (só usada quando `MCP_TRANSPORT=http`) |
+| `MCP_TRANSPORT` | No | `stdio` | Transport mode: `stdio` (default, for `npx`/Claude Desktop/VS Code) or `http` (Streamable HTTP, for Docker/remote clients such as n8n) |
+| `MCP_HTTP_PORT` | No | `3003` | Port for the HTTP server (only used when `MCP_TRANSPORT=http`) |
+| `MCP_HTTP_HOST` | No | `0.0.0.0` | Bind address for the HTTP server (only used when `MCP_TRANSPORT=http`) |
 
 ## Usage
 
@@ -69,21 +69,51 @@ npx github:ferronicardoso/mcp-movidesk
 claude mcp add movidesk --scope user -- npx -y github:ferronicardoso/mcp-movidesk
 ```
 
-O `--scope` define onde o registro do servidor fica salvo:
+`--scope` controls where the server registration is stored:
 
-| Escopo | Salvo em | Visível para |
+| Scope | Stored in | Visible to |
 |---|---|---|
-| `local` (padrão) | local do projeto, não versionado | só você, só neste projeto |
-| `project` | `.mcp.json` na raiz do projeto | quem clonar o repositório (precisa commitar o arquivo) |
-| `user` | configuração global do Claude Code | você, em todos os projetos |
+| `local` (default) | project-local, untracked | only you, only in this project |
+| `project` | `.mcp.json` at the project root | anyone who clones the repo (commit it to share) |
+| `user` | your global Claude Code config | you, across every project |
 
-Variáveis de ambiente podem ser passadas com `--env KEY=VALUE` repetido antes do `--`, por exemplo:
+Environment variables can be passed with repeated `--env KEY=VALUE` flags before the `--`, e.g.:
+
+**Bash (Linux/macOS/WSL):**
 
 ```bash
 claude mcp add movidesk --scope user \
-  --env MOVIDESK_TOKEN=seu-token-aqui \
+  --env MOVIDESK_TOKEN=your-token-here \
   -- npx -y github:ferronicardoso/mcp-movidesk
 ```
+
+**PowerShell:**
+
+```powershell
+claude mcp add movidesk --scope user `
+  --env MOVIDESK_TOKEN=your-token-here `
+  -- npx -y github:ferronicardoso/mcp-movidesk
+```
+
+### Codex CLI
+
+**Bash (Linux/macOS/WSL):**
+
+```bash
+codex mcp add movidesk \
+  --env MOVIDESK_TOKEN=your-token-here \
+  npx -- -y github:ferronicardoso/mcp-movidesk
+```
+
+**PowerShell:**
+
+```powershell
+codex mcp add movidesk `
+  --env MOVIDESK_TOKEN=your-token-here `
+  npx -- -y github:ferronicardoso/mcp-movidesk
+```
+
+This registers the server in `~/.codex/config.toml`. To remove it, run `codex mcp remove movidesk`.
 
 ### Claude Desktop configuration
 
@@ -96,7 +126,7 @@ claude mcp add movidesk --scope user \
       "command": "npx",
       "args": ["github:ferronicardoso/mcp-movidesk"],
       "env": {
-        "MOVIDESK_TOKEN": "seu-token-aqui"
+        "MOVIDESK_TOKEN": "your-token-here"
       }
     }
   }
@@ -114,25 +144,36 @@ claude mcp add movidesk --scope user \
       "command": "npx",
       "args": ["github:ferronicardoso/mcp-movidesk"],
       "env": {
-        "MOVIDESK_TOKEN": "seu-token-aqui"
+        "MOVIDESK_TOKEN": "your-token-here"
       }
     }
   }
 }
 ```
 
-### Rodando com Docker (transporte HTTP)
+### Run with Docker (HTTP transport)
 
-A imagem publicada roda em modo Streamable HTTP por padrão, para uso como endpoint MCP remoto (ex.: a partir do node MCP Client Tool do n8n ou qualquer cliente compatível com Streamable HTTP):
+The published image runs in Streamable HTTP mode by default, for use as a remote MCP endpoint (e.g. from n8n's MCP Client Tool node or any Streamable HTTP-compatible client):
+
+**Bash (Linux/macOS/WSL):**
 
 ```bash
 docker run -d --name mcp-movidesk \
   -p 3003:3003 \
-  -e MOVIDESK_TOKEN=seu-token-aqui \
+  -e MOVIDESK_TOKEN=your-token-here \
   ghcr.io/ferronicardoso/mcp-movidesk:latest
 ```
 
-O endpoint MCP fica disponível em `http://localhost:3003/mcp`.
+**PowerShell:**
+
+```powershell
+docker run -d --name mcp-movidesk `
+  -p 3003:3003 `
+  -e MOVIDESK_TOKEN=your-token-here `
+  ghcr.io/ferronicardoso/mcp-movidesk:latest
+```
+
+The MCP endpoint is then available at `http://localhost:3003/mcp`.
 
 ## Local Development
 
@@ -146,18 +187,18 @@ npm run build
 Start the compiled server:
 
 ```bash
-MOVIDESK_TOKEN=seu-token-aqui npm start
+MOVIDESK_TOKEN=your-token-here npm start
 ```
 
 ## Build and Commit Workflow
 
-Este repositório versiona `dist/` intencionalmente, para suportar o uso via `npx github:user/repo`.
+This repository intentionally tracks `dist/` to support `npx github:user/repo` usage.
 
-O projeto usa um hook Husky `pre-commit` para:
-1. compilar TypeScript (`npm run build`)
-2. adicionar os artefatos gerados (`git add dist`)
+The project uses a Husky `pre-commit` hook to:
+1. build TypeScript (`npm run build`)
+2. stage generated artifacts (`git add dist`)
 
-Fallback manual:
+Manual fallback:
 
 ```bash
 npm run build
@@ -166,6 +207,10 @@ git add dist
 
 ## Security Notes
 
-- Nunca commite o token real ou arquivos `.env`.
-- Use `MOVIDESK_TOKEN` via ambiente para uso contínuo; evite `--token` fora de testes pontuais.
-- O limite de 10 requisições/minuto da API vale das 7:01 às 18:59; fora desse horário o acesso é irrestrito.
+- Never commit the real token or `.env` files.
+- Use `MOVIDESK_TOKEN` via environment for continuous use; avoid `--token` outside of one-off testing.
+- The API's 10 requests/minute limit applies from 7:01 AM to 6:59 PM; outside that window access is unrestricted.
+
+## License
+
+[MIT](LICENSE) © Raphael Augusto Ferroni Cardoso
